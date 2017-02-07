@@ -9,14 +9,11 @@ import android.nfc.NfcAdapter;
 import android.nfc.Tag;
 import android.nfc.tech.Ndef;
 import android.os.AsyncTask;
-import android.os.Parcelable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Toast;
 
-import java.io.UnsupportedEncodingException;
-import java.util.Arrays;
 
 
 public class MainApp extends AppCompatActivity {
@@ -81,16 +78,41 @@ public class MainApp extends AppCompatActivity {
 
     private void readMsg(Intent intent){
         if (intent != null && NfcAdapter.ACTION_NDEF_DISCOVERED.equals(intent.getAction())) {
-            Parcelable[] rawMessages = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES);
-            if (rawMessages != null) {
-                NdefMessage[] messages = new NdefMessage[rawMessages.length];
-                for (int i = 0; i < rawMessages.length; i++) {
-                    messages[i] = (NdefMessage) rawMessages[i];
-                    String str = new String(messages[i].getRecords()[0].getPayload());
-                    Toast.makeText(this,str,0).show();
-                }
-                // Process the messages array.
+            Tag tag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
+            new NdefReaderTask().execute(tag);
+        }
+    }
+
+    private class NdefReaderTask extends AsyncTask<Tag, Void, String>{
+
+        String str;
+
+        @Override
+        protected String doInBackground(Tag... tags) {
+            Tag tag = tags[0];
+            Ndef ndef = Ndef.get(tag);
+            if (ndef == null) {
+                // NDEF is not supported by this Tag.
+                return null;
             }
+            NdefMessage ndefMessage = ndef.getCachedNdefMessage();
+            NdefRecord[] records = ndefMessage.getRecords();
+            for (NdefRecord record:records){
+                str = new String(record.getPayload());
+//                runOnUiThread(new Runnable() {
+//                    @Override
+//                    public void run() {
+//                        Toast.makeText(getBaseContext(),str,0).show();
+//                    }
+//                });
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            super.onPostExecute(s);
+            Toast.makeText(getBaseContext(),str,0).show();
         }
     }
 }
